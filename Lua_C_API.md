@@ -15,6 +15,61 @@ Lua库完全“可重入”，即其不改变C语言中的变量，所有的运�
 lua_State *luaState = lua_open();
 // do something
 ```
+函数原型为：
+```
+lua_State *lua_open(void); // 创建state
+void lua_close(lua_State *L) // 释放state
+```
+当程序结束时，创建的state会被自动释放掉。若程序需要长时间执行，最好手动释放掉这些state。
+
+## 2，Stack 和 indices
+Lua使用一个虚拟栈（virtual stack）来和C进行通信，即通过虚拟栈来互相传递值。栈中的每个元素代表Lua中的value(nil, number, string等)。当Lua调用C函数时，则Lua会创建一个新的栈，该栈与之前创建的任何栈没有任何关系。在栈刚创建时，栈中存放调用C函数后返回的值。
+
+为使用方便，该栈并不严格执行栈的操作，而是可以通过索引（index）来对栈中元素进行访问：
+1，正数表示从栈底开始的位置，比如index = 1 ，表示从栈底开始的第一个元素。
+2，负数表示从栈顶开始的位置，比如index = -1，表示从栈顶开始的第一个元素。
+
+>有效索引（valid index)：指介于栈底和栈顶之间索引。假设栈中共有n个元素，则1 <= abs(valid index) <=n。
+
+可以通过调用函数lua_gettop来获取栈顶元素的索引（也可得到栈中元素数量，若为0，则表示栈空）：
+```
+int lua_gettop(lua_State *L);
+```
+栈的空间无法自动增长，因此需要用户确定当前栈的空间足够大，从而不会出现栈溢出（stack overflow）：
+```
+int lua_checkstack(lua_State *L, int extra)
+```
+上面函数将栈大小调整到：top + extra，即栈中可以容纳元素个数为：top+extra。该函数不会收缩栈大小；若扩容失败，则返回false；若栈已经比指定的要大，则不发生任何变化。栈最少可以容纳LUA_MINSTACK个元素，该宏定义于lua.h中，其值为20.
+
+>可接受索引（acceptable index）：上面提到，栈本身空间容量大于栈中的元素数量（即栈顶元素索引），因此凡是在栈最大容量以内的索引都是可接受索引。其范围为： （index < 0 && abs(index) <= top）(此为有效索引) || (index > 0 && index <= stackspace)（此为可接受索引）
+
+注意：0永远为不可接受索引
+
+若为特殊说明，对于任何可以接受valid index的函数，也可以使用伪索引（pseudo-indices）进行访问，其代表那些可以访问C代码的Lua value，且不在栈中。伪索引用于访问全局环境（global environment——即不在Lua调用函数体内的变量），注册值（registry）和C函数的上值（upvalue)。
+
+## 3，Stack manipulation
+下面是对栈的基本操作函数：
+```
+void lua_settop(lua_State *L, int index); // 将栈顶指针值设置为index，可以设为包括0在内的任何整数。若新栈顶比旧栈顶低，则栈收缩，新栈顶之上数据被删除。若新栈顶比旧栈顶高，则多出来的元素用nil填补；若index=0，则所有元素都被删除。下面宏定义于lua.h中
+#define lua_pop(L, n) lua_settop(L, -(n)-1) // 弹出n个元素
+void lua_pushvalue(lua_State *L, int index); // 将指定index的元素复制一份，并压入栈中
+void lua_remove(lua_State *L, int index); //移除指定index的元素
+void lua_insert(lua_State *L, int index); // 将栈顶元素移动到指定index位置上
+void lua_replace(lua_State *L, int index); // 将指定index的元素删除，并将栈顶元素插入到index处
+```
+注意：不能对“伪索引”进行lua_remove或者lua_insert操作，因为伪索引并不指向栈内元素。
+
+## 4，Query the stack
+下面函数用于确定栈内元素的类型：
+```
+int lua_type(lua_State *L, int index);
+int lua_isnil(lua_State *L, int index);
+int lua_isboolean(lua_State *L, int index);
+
+```
+
+## 5，从Stack中获得值
+
 
 
 
