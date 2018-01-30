@@ -50,7 +50,9 @@ int lua_checkstack(lua_State *L, int extra)
 ## 3，Stack manipulation
 下面是对栈的基本操作函数：
 ```
-void lua_settop(lua_State *L, int index); // 将栈顶指针值设置为index，可以设为包括0在内的任何整数。若新栈顶比旧栈顶低，则栈收缩，新栈顶之上数据被删除。若新栈顶比旧栈顶高，则多出来的元素用nil填补；若index=0，则所有元素都被删除。下面宏定义于lua.h中
+void lua_settop(lua_State *L, int index); // 将栈顶指针值设置为index，可以设为包括0在内的任何整数。
+//若新栈顶比旧栈顶低，则栈收缩，新栈顶之上数据被删除。
+//若新栈顶比旧栈顶高，则多出来的元素用nil填补；若index=0，则所有元素都被删除。下面宏定义于lua.h中
 #define lua_pop(L, n) lua_settop(L, -(n)-1) // 弹出n个元素
 void lua_pushvalue(lua_State *L, int index); // 将指定index的元素复制一份，并压入栈中
 void lua_remove(lua_State *L, int index); //移除指定index的元素
@@ -62,7 +64,8 @@ void lua_replace(lua_State *L, int index); // 将指定index的元素删除，�
 ## 4，Query the stack
 下面函数用于确定栈内元素的类型：
 ```
-int lua_type(lua_State *L, int index);// 返回值为LUA_TNONE表示non-valid index。返回值是lua.h中定义的某个值：LUA_TNIL,LUA_TNUMBER, LUA_TBOOLEAN, LUA_TSTRING, LUA_TTABLE, LUA_TFUNCTION, LUA_TUSERDATA, LUA_TTHREAD, LUA_TLIGHTUASERDATA
+int lua_type(lua_State *L, int index);// 返回值为LUA_TNONE表示non-valid index。
+//返回值是lua.h中定义的某个值：LUA_TNIL,LUA_TNUMBER, LUA_TBOOLEAN, LUA_TSTRING, LUA_TTABLE, LUA_TFUNCTION, LUA_TUSERDATA, LUA_TTHREAD, LUA_TLIGHTUASERDATA
 
 const char *lua_typename(lua_State *L, int type); //返回元素对应类型的字符串
 int lua_isnil(lua_State *L, int index);
@@ -93,10 +96,15 @@ int lua_lessthan(lua_State *L, int index1, int index2);
 
 下面函数将栈中元素转换为特定C类型：
 ```
-int         lua_toboolean       (lua_State *L, int index); // 将元素转换为0或1，若元素不是false或nil，则返回1，否则返回0.若索引无效，返回0.若确定是否真的是boolean值，则需要使用lua_isboolean进行检测。
-lua_Number  lua_tonumber        (lua_State *L, int index); // 将元素转换为数值，默认lua_Number为double类型。Lua value必须是一个数字或者可以转换成数字的字符串，否则返回0.
+int         lua_toboolean       (lua_State *L, int index); // 将元素转换为0或1，若元素不是false或nil，则返回1，否则返回0.
+//若索引无效，返回0.若确定是否真的是boolean值，则需要使用lua_isboolean进行检测。
+lua_Number  lua_tonumber        (lua_State *L, int index); // 将元素转换为数值，默认lua_Number为double类型。
+//Lua value必须是一个数字或者可以转换成数字的字符串，否则返回0.
 const char  *lua_tostring       (lua_State *L, int index); // 将元素转换成字符串，被转换元素必须是字符串或者数字，否则返回NULL。
-size_t      lua_strlen          (lua_State *L, int index);
+// 
+//
+//
+size_t      lua_strlen          (lua_State *L, int index); 
 size_t      lua_strlen          (lua_State *L, int index);
 size_t      lua_strlen          (lua_State *L, int index);
 lua_CFunction lua_tocfunction   (lua_State *L, int index);
