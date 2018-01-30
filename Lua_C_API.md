@@ -65,7 +65,8 @@ void lua_replace(lua_State *L, int index); // 将指定index的元素删除，�
 下面函数用于确定栈内元素的类型：
 ```
 int lua_type(lua_State *L, int index);// 返回值为LUA_TNONE表示non-valid index。
-//返回值是lua.h中定义的某个值：LUA_TNIL,LUA_TNUMBER, LUA_TBOOLEAN, LUA_TSTRING, LUA_TTABLE, LUA_TFUNCTION, LUA_TUSERDATA, LUA_TTHREAD, LUA_TLIGHTUASERDATA
+//返回值是lua.h中定义的某个值：LUA_TNIL,LUA_TNUMBER, LUA_TBOOLEAN, LUA_TSTRING, 
+// LUA_TTABLE, LUA_TFUNCTION, LUA_TUSERDATA, LUA_TTHREAD, LUA_TLIGHTUASERDATA
 
 const char *lua_typename(lua_State *L, int type); //返回元素对应类型的字符串
 int lua_isnil(lua_State *L, int index);
@@ -96,11 +97,14 @@ int lua_lessthan(lua_State *L, int index1, int index2);
 
 下面函数将栈中元素转换为特定C类型：
 ```
-int         lua_toboolean       (lua_State *L, int index); // 将元素转换为0或1，若元素不是false或nil，则返回1，否则返回0.
+int         lua_toboolean       (lua_State *L, int index); 
+// 将元素转换为0或1，若元素不是false或nil，则返回1，否则返回0.
 //若索引无效，返回0.若确定是否真的是boolean值，则需要使用lua_isboolean进行检测。
-lua_Number  lua_tonumber        (lua_State *L, int index); // 将元素转换为数值，默认lua_Number为double类型。
+lua_Number  lua_tonumber        (lua_State *L, int index); 
+// 将元素转换为数值，默认lua_Number为double类型。
 //Lua value必须是一个数字或者可以转换成数字的字符串，否则返回0.
-const char  *lua_tostring       (lua_State *L, int index); // 将元素转换成字符串，被转换元素必须是字符串或者数字，否则返回NULL。
+const char  *lua_tostring       (lua_State *L, int index); 
+// 将元素转换成字符串，被转换元素必须是字符串或者数字，否则返回NULL。
 // 
 //
 //
