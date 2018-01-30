@@ -67,7 +67,6 @@ void lua_replace(lua_State *L, int index); // 将指定index的元素删除，�
 int lua_type(lua_State *L, int index);// 返回值为LUA_TNONE表示non-valid index。
 //返回值是lua.h中定义的某个值：LUA_TNIL,LUA_TNUMBER, LUA_TBOOLEAN, LUA_TSTRING, 
 // LUA_TTABLE, LUA_TFUNCTION, LUA_TUSERDATA, LUA_TTHREAD, LUA_TLIGHTUASERDATA
-
 const char *lua_typename(lua_State *L, int type); //返回元素对应类型的字符串
 int lua_isnil(lua_State *L, int index);
 int lua_isboolean(lua_State *L, int index);
