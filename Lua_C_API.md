@@ -62,13 +62,58 @@ void lua_replace(lua_State *L, int index); // 将指定index的元素删除，�
 ## 4，Query the stack
 下面函数用于确定栈内元素的类型：
 ```
-int lua_type(lua_State *L, int index);
+int lua_type(lua_State *L, int index);// 返回值为LUA_TNONE表示non-valid index。返回值是lua.h中定义的某个值：LUA_TNIL,LUA_TNUMBER, LUA_TBOOLEAN, LUA_TSTRING, LUA_TTABLE, LUA_TFUNCTION, LUA_TUSERDATA, LUA_TTHREAD, LUA_TLIGHTUASERDATA
+
+const char *lua_typename(lua_State *L, int type); //返回元素对应类型的字符串
 int lua_isnil(lua_State *L, int index);
 int lua_isboolean(lua_State *L, int index);
+int lua_isnumber(lua_State *L, int index);
+int lua_isstring(lua_State *L, int index);
+int lua_istable(lua_State *L, int index);
+int lua_isfunction(lua_State *L, int index);
+int lua_iscfunction(lua_State *L, int index);
+int lua_isuserdata(lua_State *L, int index);
+int lua_islightuserdata(lua_State *L, int index);
+```
+（1）上面所有类型，若与给定类型兼容(compatible)，则返回1，否则返回0。lua_isboolean比较特殊的一点是，其仅在boolean值是有意义，其他值无意义。因为其他值都可以看作是boolean值。
+（2）若索引无效，则返回0.
+（3）lua_isnumber接受数字或者数字字符串。
+（4) lua_isstring接受字符串和数字。为了区分数字和字符串，可使用lua_type函数。
+（5）lua_isfunction可同时接受Lua函数和C函数。可使用lua_iscfuntion来区分两种函数。
+（6）lua_isuserdata接受full 和 light userdata。可使用lua_islightuserdata来区分两种数据类型。
 
+下面为比较大小函数（索引无效则返回0）：
+```
+int lua_equal(lua_State *L, int index1, int index2);
+int lua_rawequal(lua_State *L, int index1, int index2); //该函数只是进行原始比较，而不调用metamethods。
+int lua_lessthan(lua_State *L, int index1, int index2);
 ```
 
 ## 5，从Stack中获得值
+
+下面函数将栈中元素转换为特定C类型：
+```
+int         lua_toboolean       (lua_State *L, int index); // 将元素转换为0或1，若元素不是false或nil，则返回1，否则返回0.若索引无效，返回0.若确定是否真的是boolean值，则需要使用lua_isboolean进行检测。
+lua_Number  lua_tonumber        (lua_State *L, int index); // 将元素转换为数值，默认lua_Number为double类型。Lua value必须是一个数字或者可以转换成数字的字符串，否则返回0.
+const char  *lua_tostring       (lua_State *L, int index); // 将元素转换成字符串，被转换元素必须是字符串或者数字，否则返回NULL。
+size_t      lua_strlen          (lua_State *L, int index);
+size_t      lua_strlen          (lua_State *L, int index);
+size_t      lua_strlen          (lua_State *L, int index);
+lua_CFunction lua_tocfunction   (lua_State *L, int index);
+void          *lua_touserdata   (lua_State *L, int index);
+lua_State     *lua_tothread     (lua_State *L, int index);
+void          *lua_topointer    (lua_State *L, int index);
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
