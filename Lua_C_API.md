@@ -362,24 +362,50 @@ lua提供了一个registry（注册表），该注册表为一个pre-defined tab
 在引用机制下，registry中使用整数key，由auxiliary library来实现，因此不能用于其他目的。
 
 ## 19 error handling in C
-Lua 内部使用C语言的longjmp
+Lua 内部使用C语言的longjmp机制来处理error。当Lua需要处理error（如内存分配错误，类型错误，语法错误）时，其将raise error，即进行一个long jump。一个protected environment使用setjmp函数来设置恢复点，任何错误都会跳到最近的active recover pointer处。
+
+若在protected environment之外发生错误，Lua调用panic function，并调用exit(EXIT_FAILURE)。通过下面函数来设置panic函数：
+>lua_CFunction lua_atpanic(lua_State *L, lua_CFunction panicf);
+
+在你新设置的panic函数中，通过禁止返回操作，来防止程序退出（比如使用long jump）。但是，这样做会让lua状态不一致，处理此种情况最安全的方式就是关闭这个应用。在API中，几乎所有函数都有raise error功能。下列函数运行在protected mode下（即这些函数创建protected environment来运行），则他们永远不会raise error: lua_open, lua_close， lua_load, lua_pcall。
+
+下面也有在protected mode下运行一个给定C函数的函数：
+
+> int lua_cpcall(lua_State *L, lua_CFunction func, void *ud);
+
+该函数在protected mode下运行c函数func.func只使用栈中一个元素作为参数启动——包含ud的一个light userdata。为了处理错误，lua_cpcall返回与lua_pcall相同的错误代码，并将error object压入栈顶；否则，其返回0， 且不改变堆栈。该函数返回的任何值都会被丢弃。
+
+C代码可以通过调用下面函数来生成lua error：
+>void lua_error(lua_State *L);
+
+error message（实际上可以为任何类型的对象）需要在栈顶，该函数产生一个long jump, 因此，永远不会返回。
+
+## 20， threads
+lua部分支持多线程编程。若C库支持多线程，则lua与该库协同使用，相当于是使用多线程在lua中。同时，lua在线程之上应用其协程系统（coroutine system）。下面的函数在Lua中创建一个新线程：
+
+> lua_State *lua_newthread(lua_State *L);
+
+该函数将新创建的线程压入栈中，并返回一个指向lua_State的指针来代表新创建的线程。返回的新创建的线程共享原有state的所有global object(比如table)，但是有一个独立的运行时栈。没有函数可以显式关闭或销毁线程，和其他lua对象相同，其服从垃圾回收。
+
+为了操纵以coroutine形式的线程，lua提供如下函数：
+```
+int lua_resume(lua_State *L, int narg);
+int lua_yield(lua_State *L, int nresults);
+```
+
+（1）为了执行coroutine，首先需要创建一个新线程，然后将需要执行的函数体及其参数压入新线程的栈中。
+（2）然后调用lua_resume函数，narg指出传入的参数数量。当coroutine执行结束或者挂起时，该函数调用返回，此时，栈中存放了需要传递给lua_yield函数的值，或者存放了由主题执行函数(body function)返回的值。若成功运行coroutine，则lua_resume返回0，否则，返回error code。
+（3）对于任何错误，栈中仅存放error message。若打算重启coroutine，只有在来自于yield函数的结果放入该coroutine对应的栈中后，才可以再次调用lua_resume。lua_yield函数只能以C函数中，返回表达式中的值进行调用，就像下面的代码：
+>return lua_yield(L, nresults);
+
+当c函数以上面形式调用lua_yield，正在运行的coroutine将会挂起，启动该coroutine的lua_resume函数调用将会返回。参数nresults为栈中将要传递给lua_resume函数的参数个数。
+
+若要在两个进程中交换数据，则可以使用下面函数：
+>void lua_xmove(lua_State *from, lua_State *to, int n);
+该函数从栈from中弹出n个值，并将这些值压入到to中。
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+**本篇完**
