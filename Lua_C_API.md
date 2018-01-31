@@ -104,19 +104,54 @@ lua_Number  lua_tonumber        (lua_State *L, int index);
 //Lua value必须是一个数字或者可以转换成数字的字符串，否则返回0.
 const char  *lua_tostring       (lua_State *L, int index); 
 // 将元素转换成字符串，被转换元素必须是字符串或者数字，否则返回NULL。
-// 
-//
-//
+// 若元素值为一个数字，则将数字按照ASCII码转换成字符（此转换会让lua_next产生困惑）。
+// 返回字符串尾部自动补充"\0"，但是有可能在串内也有\0出现，可以使用函数lua_strlen获得字符串实际长度。
+// 由于Lua回收机制，需要将获得的字符串复制出来，或者放到注册表（registry)，否则将来可能会被移出栈。
 size_t      lua_strlen          (lua_State *L, int index); 
-size_t      lua_strlen          (lua_State *L, int index);
-size_t      lua_strlen          (lua_State *L, int index);
 lua_CFunction lua_tocfunction   (lua_State *L, int index);
-void          *lua_touserdata   (lua_State *L, int index);
+// 该函数返回一个C函数指针，失败返回NULL
+void          *lua_touserdata   (lua_State *L, int index);
 lua_State     *lua_tothread     (lua_State *L, int index);
-void          *lua_topointer    (lua_State *L, int index);
+// 返回值必须是个thread，转换失败则返回NULL
+void          *lua_topointer    (lua_State *L, int index);
+// 该函数返回一个void *的C指针，其指向对象可能是userdata, table, thread, function.若都不是，则返回NULL。
+// 通常该函数用于debug。
 ```
 
+## 6，Push values onto stack
+下面函数将C语言中的值压入栈中：
+```
+void lua_pushboolean    (lua_State *L, int b);
+void lua_pushnumber     (lua_State *L, lua_Number n);
+void lua_pushlstring    (lua_State *L, const char *s, size_t len);
+void lua_pushstring     (lua_State *L, const char *s);
+void lua_pushnil        (lua_State *L);
+void lua_pushcfunction  (lua_State *L, lua_CFunction f);
+void lua_pushuserdata   (lua_State *L, void *p);
+```
+(1)上面函数将C语言类型的值转换成Lua值，并压入栈。
+（2）其中，lua_pushlstring和lua_pushstring复制原有字符串。对于lua_pushstring, 其只接受末尾有，且其他地方没有“\0”的字符串。否则就需要调用lua_pushlstring()来指定字符串的长度。
+（3）也可以使用格式化的字符串函数，这些函数将格式化字符串压入栈，并返回指向这些字符串的指针。
+```
+const char *lua_pushfstring(lua_State *L, const char *fmt, ...);
+const char *lua_pushvfstring(lua_State *L, const char *fmt, va_list argp);
+```
+上面函数与sprintf和vsprintf基本相同，有以下几点不同：
+（1）不需要对空间分配进行额外管理。Lua自动分配回收空间。
+（2）转义字符仅限以下几个，不能使用flag, 宽度，精度限定。%%（插入符号%）, %s（插入以\0结尾的字符串）, %f（插入lua_Number）, %d(插入证书), %c（插入以字符形式呈现的整数）。
 
+>void lua_concat(lua_State *L, int n)
+>该函数将栈顶上n个值弹出，连接他们，形成新的字符串，并将新的字符串压入栈中。若n=1,则还是栈顶字符串，没变化；若n=0，则旧的栈顶元素变成一个空串。
+
+## 7，control garbage collection
+Lua使用两个数来控制其垃圾回收的时机：count 和 threshold。count计数lua使用的内存量，当count达到threshold时，lua开始进行垃圾回收。当垃圾回收结束，count被更新，threshold变为原来值的两倍。可以通过如下函数获得这两个值：
+>int lua_getgccount(lua_State *L);
+>int lua_getcthreshold(lua_State *L);
+
+两个函数均以KB为单位，可以通过下面函数修改threshold的值：
+>void lua_setgcthreshold(lua_State *L, int newthreshold);
+
+如果threshold的值比当前的count小，则立刻进行垃圾回收。若新的
 
 
 
