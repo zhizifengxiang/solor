@@ -352,7 +352,17 @@ static int foo ( lua_State *L) {
 > void lua_pushcclosure(lua_State *L, lua_CFunction fn, int n);
 
 （1）参数n指明有需要与函数关联的值的数量。（lua_pushcclosure将这些被关联的值弹出栈）。事实上，宏lua_pushcfunction就是调用lua_pushcclosure时，n=0。
-（2）每当C函数被调用，这些值可以通过伪索引进行访问，这些伪索引由宏lua_upvalueindex产生
+（2）每当C函数被调用，这些值可以通过伪索引进行访问，这些伪索引由宏lua_upvalueindex产生，第一个关联的值可通过调用此函数访问：lua_upvalueindex(1)。当n的值大于当前函数上值（upvalue)数量时，调用lua_upvalueindex(n)会产生一个可接受（acceptable）但是无效（invalid）的索引（index）。
+
+查看src/lib/*.c文件可找到对应的C函数以及闭包。
+
+## 18， registry
+lua提供了一个registry（注册表），该注册表为一个pre-defined table， 可被C代码用来存储任何Lua值，尤其是在需要存储超过当前C函数周期的Lua变量时。该table可以通过伪索引：LUA_REGISTRYINDEX来访问。认可C库都可在该表中存储数据，只要其选择的Key与其他库的不同。通常，可以使用包含库名的字符串，或者以C指针形式的light userdata来作为key。
+
+在引用机制下，registry中使用整数key，由auxiliary library来实现，因此不能用于其他目的。
+
+## 19 error handling in C
+Lua 内部使用C语言的longjmp
 
 
 
