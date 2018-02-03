@@ -73,13 +73,14 @@ VirtualBox also has limited support for so-called jumbo frames, i.e. networking 
 下表给出了主要网络模式的概览：
 
 Table 6.1. Overview
-|               |VM ↔ Host    |VM1 ↔ VM2   | VM → Internet |   VM ← Internet|
-| ---------- | :-------: | :------: | :-----: | --------: |
-| Host-only |    +                 |        +    | –    | – |
-| Internal    | –                      |       +    | –   | – |
-| Bridged    | +                     |       +    | +   | + |
-| NAT          |   –                  |        –    | +    | Port forwarding |
-| NAT Network |    –             |       +    | +   | Port forwarding |
+
+               |VM ↔ Host |VM1 ↔ VM2   | VM → Internet |   VM ← Internet|
+               ---------- | ------- | :------: | :-----: | --------: |
+               Host-only  |    +    |     +    |   –     | –         |
+               Internal   | –      |     +    | –       | –          |
+               | Bridged  | +       |       +    | +   | + |
+               | NAT      |   –     |        –    | +    | Port forwarding |
+               | NAT Network |    – |       +    | +   | Port forwarding |
 
 
 
