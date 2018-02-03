@@ -68,12 +68,17 @@ VirtualBox also has limited support for so-called jumbo frames, i.e. networking 
 该模式可以让不同宿主机中的虚拟机进行通信。
 
 >7.2, VDE (Virtual Distributed Ethernet) networking
+该选项通常配置于Linux或者FreeBSD系统，可以构建虚拟分布式网络Virtual Distributed Ethernet 。该选项需要手动编译VB源代码，安装包没有此功能。
 
-This option can be used to connect to a Virtual Distributed Ethernet switch on a Linux or a FreeBSD host. At the moment this needs compiling VirtualBox from sources, as the Oracle packages do not include it.
+下表给出了主要网络模式的概览：
 
-The following table provides a quick overview of the most important networking modes:
-
-
+Table 6.1. Overview
+|               |VM ↔ Host    |VM1 ↔ VM2   | VM → Internet |   VM ← Internet|
+|Host-only|    +                 |        +    |–    |–|
+|Internal    |–                      |       +    |–   | –|
+|Bridged    |+                     |       +    |+   | +|
+|NAT          |   –                  |        –    |+    |Port forwarding|
+|NAT Network|    –             |       +    |+   | Port forwarding|
 
 
 
