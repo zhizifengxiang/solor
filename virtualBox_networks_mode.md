@@ -74,12 +74,12 @@ VirtualBox also has limited support for so-called jumbo frames, i.e. networking 
 
 Table 6.1. Overview
 |               |VM ↔ Host    |VM1 ↔ VM2   | VM → Internet |   VM ← Internet|
-| ----------| :-------:| ------:|
-|Host-only|    +                 |        +    |–    |–|
-|Internal    |–                      |       +    |–   | –|
-|Bridged    |+                     |       +    |+   | +|
-|NAT          |   –                  |        –    |+    |Port forwarding|
-|NAT Network|    –             |       +    |+   | Port forwarding|
+| ---------- | :-------: | :------: | :-----: | --------: |
+| Host-only |    +                 |        +    | –    | – |
+| Internal    | –                      |       +    | –   | – |
+| Bridged    | +                     |       +    | +   | + |
+| NAT          |   –                  |        –    | +    | Port forwarding |
+| NAT Network |    –             |       +    | +   | Port forwarding |
 
 
 
