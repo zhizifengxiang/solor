@@ -254,12 +254,90 @@ Label::Label(LabelPrivate &d) : Widget(d) {
 ```
 在上面代码中，当创建出Label类对象后，其会自动创建LabelPrivate对象（继承自WidgetPrivate）。Label会将d-pointer对象实体传递给Widget类的protected构造函数。所以，创建Label对象只会进行一次内存分配，而Label也提供了protected构造函数，该函数可被子类用来提供他们自己的Private class。
 ## 6， d-pointer in Qt
+在Qt 中，全部public class都是用d-pointer方法，唯一不适用该方法的情况是，已经预先知道该类，永远不会在未来版本中添加新的成员变量。比如，QPoint，QRect类，这两个类不会再添加新的成员变量，因此，他们的成员变量直接放入public class中，而不使用d-pointer。注意，根据上面的方法，所有的Private class都继承自QObjectPrivate。
 
 ### 6.1 Q_D and Q_Q
+上面经过改进的方法有一个副作用是，我们将q-ptr和d-ptr分别作为Widget和WidgetPrivate类的指针，这就意味着下面的方法将会出问题：
+```
+void Label::setText(const String &text) {
+// won't work, since d_ptr is of type WidgetPrivate
+// even though it points to LabelPrivate object
+// 即由于指针d_ptr指向基类WidgetPrivate ，因此无法访问变量LabelPrivate中的成员变量text
+d_ptr->text = text; // 会产生错误
+}
+```
+因此，当需要使用d-pointer来访问派生类时，我们需要static_cast来转换成适当的类型：
+```
+void Label::setText(const String &text) {
+    LabelPrivate *d = static_cast<LabelPrivate*>(d_ptr);
+    d->text = text;
+}
+```
+使用static_cast 不够优雅，也比较麻烦，因此我们使用两个定义在src/corelib/global/qglobal.h中的宏，他们可以让操作更直接简便：
+```
+// global.h
+#define Q_D(Class) Class##Private * const d = d_func()
+#define Q_Q(Class) Class *const q = q_func()
 
+// label.cpp
+// with Q_D, you can use the members of LabelPrivate from Label
+void Label::setText(const String &text) {
+    Q_D(Label);
+    d->text = text;
+}
+
+// with Q_Q, you can use the member of Label from LabelPrivate
+void LabelPrivate::someHelperFunction() {
+    Q_Q(Label);
+    q->selectAll();
+}
+```
 ### 6.2 Q_DECLARE_PRIVATE and Q_DECLARE_PUBLIC
 
+Q_DECLARE_PRIVATE宏声明于qglobal.h文件中：
+```
+#define Q_DECLARE_PRIVATE(Class) \
+    inline Class##Private *d_func() { \
+    return reinterpret_cast<Class##Private*>(qGetPtrHelper(d_ptr)); \
+} \
+inline const Class##Private d_func() const { \
+    return reinterpret_cast<const Class##Private *>(qGetPtrHelper(d_ptr)); \
+} \
+friend class Class##Private;
+```
 
+上面的宏可以下面的方式使用：
+
+```
+// qlabel.h
+class QLable {
+private:
+    Q_DECLARE_PRIVATE(QLabel);
+};
+```
+该方法实际上为QLabel提供了一个函数d_func()，该函数允许访问其private internel class。由于宏被包含在private修饰符内，因此函数本身是私有的，但是可以被QLabel的友元类（friend class）来调用。该方法对于那些无法通过QLabel公有接口来访问的属性来说，特别有用。举一个不太恰当的例子，QLabel可能会跟踪用户单击了多少次链接，但是，并没有public API可以访问到这个信息。QStatictics就是这样一个需要此类信息的类，那么开发者就将QStatictics作为QLabel的友元类，这样QStatictics类型就可以这样做：
+> label->d_func()->linkClickCount
+
+d_func还有个好处是可以强制进行const-conrrectness：比如在类MyClass的一个const 成员函数中，你需要Q_D（const MyClass），这样你就只能在MyClassPrivate中调用const 成员函数了。对于没有const修饰符的d_ptr，你仍然可以调用非const函数。
+
+本篇完。
+
+## 附录
+友元函数：存在两个类A和B，其中B需要访问一些A的私有变量，则：
+```
+class A {
+private :
+    int m_bAccess = 1;
+    frind class B;
+}
+class B {
+public:
+    int returnA {
+        A a;
+        return a.m_bAccess;
+    }
+}
+```
 
 
 
