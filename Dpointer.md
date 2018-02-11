@@ -1,8 +1,7 @@
 # D-Pointer
 
 ## 1， What is the d-pointer
-
-Qt源代码中可以看到Q_D和Q_Q宏，两个宏是被称作d-pointer的设计模式的一部分，该设计模式使库的具体实现向用户隐藏，从而保证了库内部实现的改变，不会影响到binary的兼容性。
+Qt源代码中可以看到Q_D和Q_Q宏，两个宏属于一种叫做d-pointer的设计模式，该设计模式隐藏了库的具体实现，保证即使库内部实现改变，也不会影响binary的兼容性。
 
 ## 2，Binary compatibility — what is that?
 
