@@ -63,7 +63,7 @@ __attribute__((visibility("default"))) double operation(double arg1, double arg2
 在C中，函数签名完全可以保证符号正确解析，但是对于c++，由于重载，重写等多态功能，导致不同编译器对C++的符号修饰不一样，即对根据namespace, class的等对symbol进行进一步修饰，形成最后的函数签名，我们称作name mangle。所以：
 > 上面调用dlsym解析symbol "operation"，如果使用C++编译器则会失败。程序需要解析mangled name。
 
-由于mangled name依赖于不同的C++编译器，因此不同编译器解析的插件实现，无法互相通用。解决的办法是，在C++中定义接口，然后使用一个C函数返回一个指向接口的指针。该C函数使用C-linkage进行编译（specified using extern "C"）。下面的代码展现了使用C++实现插件的技术：
+由于mangled name依赖于不同的C++编译器，因此不同编译器解析的插件实现，无法互相通用。解决的办法是，在C++中定义接口，然后使用一个C函数返回一个指向接口对象的指针。该C函数使用C-linkage进行编译（specified using extern "C"）。下面的代码展现了使用C++实现插件的技术：
 
 ```
 // interface.h
@@ -73,7 +73,7 @@ class Interface {
 };
 
 extern "C" __attribute__((visibility("default"))) Interface *getInterface();
-typedef Interface *(*GetInterFacePointer)();
+typedef Interface *(*GetInterFacePointer)(); // define a function returning object Interface
 ```
 
 ```
