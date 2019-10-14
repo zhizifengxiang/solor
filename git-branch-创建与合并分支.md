@@ -51,6 +51,6 @@
 4. 此时，HEAD指针指向hotfix，版本结构呈现树状结构。
 
 # 4 合并分支
-hotfix是一个应急的临时分支，在修复完问题后，应该马上执行下面命令，将hotfix合并到master分支。
+hotfix是一个应急的临时分支，在修复完问题后，应该马上执行“合并”命令，将hotfix合并到master分支：
 > $ git checkout master
 > $ git merge hotfix
