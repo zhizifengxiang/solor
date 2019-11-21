@@ -43,8 +43,17 @@ $ git hash-object -w test.txt
 $git cat-file -t 1f7a7a472abf3dd9643fd615f6da379c4acb3e3a
 blob
 
-
 Tree
+git 中tree类似文件系统中的目录，blob类似文件系统中的inode。每个tree包含多个SHA-1条目，来索引blob，或者subtree，并记录相关的mode, type, filename.可以查看对应的tree
+git cat-file -p master^{tree}
+100644 blob a906cb2a4a904a152e80877d4088654daad0c859      README
+100644 blob 8f94139338f9404f26296befa88755fc2598c289      Rakefile
+040000 tree 99f1a6d12cb4b6f19c8655fca46c3ecf317074e0      lib
+
+master^{tree}指向master branch的最后一次commit的tree object。注意，上面的lib指向一个subtree。
+$ git cat-file -p 99f1a6d12cb4b6f19c8655fca46c3ecf317074e0
+100644 blob 47c6340d6459e05787f644c2447d2595f5d3a54b      simplegit.rb
+
 
 Commit Objects
 
