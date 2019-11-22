@@ -40,3 +40,45 @@
 
 # 3 编辑修改操作
 对文档修改操作主要包括：插入、删除、剪切、粘贴、段选择、撤销等。
+
+|键盘组合|功能|补充|
+|-------|----|----|
+|C-d|删除前面的字符，同backspace||
+|M-d|剪切一个单词|emacs称剪切为kill|
+|C-k|剪切一行||
+|M-k|剪切一个句子||
+|C-space|设置起始点，移动光标后选中一段文本||
+|C-y|粘贴刚才剪切的内容|emacs称粘贴为yank|
+|M-y|切换粘贴的内容|C-y粘贴最近的剪切操作，M-y进行切换|
+|C-/|撤回上一次操作|该操作只针对两种情况：修改文本，每次撤销会累计20个字符。也可以：C-_, C-x u|
+
+# 4 文件和缓存（buffer）
+
+### 1 文件
+通过下面命令，如果指定文件名存在，则打开文件。如果不存在，则创建文件。这个命令会让Emacs打开一个叫做minibuffer的窗口。将目标文件名输入到这个窗口中即可。
+> C-x C-f
+
+使用下面命令保存文件。 Emacs在保存文件的过程中，会在文件名后面加一个“~”。
+> C-x C-s
+
+### 2 缓存（buffers）
+打开文件后，文件内容会在内存中缓存，缓存区域叫做buffer，我们通过下面命令显示所有buffer。
+> C-x C-b
+
+使用下面命令，可以切换不同的buffer。
+> C-x b 输入相应的buffer
+
+下面命令会将buffer中的内容保存到文件中。
+> C-x s
+
+# 5 扩展命令
+
+
+C-x C-f		Find file
+	C-x C-s		Save file
+	C-x s		Save some buffers
+	C-x C-b		List buffers
+	C-x b		Switch buffer
+	C-x C-c		Quit Emacs
+	C-x 1		Delete all but one window
+	C-x u		Undo
