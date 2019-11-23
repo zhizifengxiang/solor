@@ -72,13 +72,85 @@
 > C-x s
 
 # 5 扩展命令
+emacs有两种方式触发拓展命令。
+> C-x 后面为单字符命令
+M-x 后面为多字符的命令
 
+上面以进见过 "C-x C-f" 和 "C-x C-s"。下面介绍其他命令。
+> C-x C-c 结束当前session，询问是否保存文件修改
+> C-x C-z 将Emacs转入后台，只有在emacs运行在命令行时有用。可以在shell中使用"%emacs"或者"fg"来唤醒。
 
-C-x C-f		Find file
-	C-x C-s		Save file
-	C-x s		Save some buffers
-	C-x C-b		List buffers
-	C-x b		Switch buffer
-	C-x C-c		Quit Emacs
-	C-x 1		Delete all but one window
-	C-x u		Undo
+对于 "M-x"，replace-string 命令让用户以交互方式，替换某个字符。用户可以输入部分命令，并使用“tab”键来补全，显示提示等。
+> M-x replace-string
+
+# 6 自动保存
+emacs会自动保存当前修改文档。其会在原始文件名两侧加“#”。比如：hello.txt，自动保存的文件名为：“#hello.txt#”。如果意外退出，我们使用下面命令，恢复之前修改。
+>M-x recover-file
+
+#7 屏幕的下半部分
+
+### 1 命令提示
+对于一些比较长的命令，emacs会在屏幕下方给出提示，回显出对应的命令。
+
+### 2 模式
+位于编辑阅读区的下方有一个显示类似如下信息的长条，
+> -:\*\*-  TUTORIAL       63% L749    (Fundamental)
+
+上面的“星号”表示当前文档被修改；后面是文件名；后面是阅读百分比和行号。
+最后是编辑区所在的“模式”。
+
+默认模式为“fundamental”，其为"major mode"的一种。通过下面命令可以切换不同的mode。每种mode命令集大致相同，在不同mode下，每个命令的行为稍有不同。
+> M-x fundamental-mode
+> M-x text-mode
+
+查看当前major mode下的帮助文档，输入下面的命令。
+> C-h m
+
+还有一些minor mode，其是对环境进行修改。每个minor mode之间，以及minor mode和major mode之间没有任何联系。
+
+Auto-fill-mode作为minor, 如果某行太长，其会让单词自动换行。打开和关闭都使用如下相同命令, 这种操作叫做“toggle the mode”
+> M-x auto-fill-mode
+
+auto-fill-mode通常每行长度为70个字符，使用下面命令，可以设置行所容纳的最大字符数量。
+> C-x f
+
+# 8 搜索和替换
+> 增量式搜索：Emacs可以随着用户输入关键词，对当前文本进行动态搜索。
+
+下面命令启动搜索，输入完关键词，按Enter或者移动光标，结束搜索。
+> C-s 向文档末尾方向搜索
+> C-r 向文档头部方向搜索
+
+# 9 窗口系统
+
+### 1 多个窗口（windows）
+下面命令为多窗口操作命令：
+
+|命令|功能|补充|
+|-----|-----|----|
+|C-x 2|在当前窗口分割出一个window||
+|C-x o|将光别切换到另一个window中||
+|C-M v|对另一个页面向下翻页|meta可以用esp键代替，但是按键顺序是esp-C v|
+|C-x 4 C-f|在新的window中打开文件，且光标移动到新window中||
+
+### 2 多个框架（frame）
+一个frame包含多个window，以及window配套的菜单，滚动条等等。
+> M-x make-frame # 创建新的frame
+
+### 3 recursive edit
+不明白怎么回事，只说下现象和解决方案。
+当"(fundamental)"变成"[(fundamental)]",此时就进入了recursive edit模式。多次按“esc”即可退出。
+
+# 10 寻找更多文档
+下面命令可以获得针对某个命令的信息。
+
+|命令|功能|补充
+|----|-----|----|----|
+|C-h 命令选项|显示某个命令的文档||
+|C-h C-h|显示所有可以获得信息||
+|C-h c 命令的描述|比如 "C-h c C-p"会显示C-p命令的简短描述||
+|C-h k 命令的描述|获得某个命令的详细说明||
+|C-h f 函数名称|某个函数的描述|比如"C-h f previous-line"|
+|C-h v 某个变量|某个变量的描述||
+|C-h a|输入某个字符，Emacs列出所有相关的命令|比如：C-h a file|
+|C-h i|打开info文档||
