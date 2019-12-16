@@ -82,9 +82,50 @@ ArgumentParser.add_argument(name or flags...(用逗号隔开的多个字符串)�
 ```
 
 ### 1 name or flags
+分option（如-f, --help）和position （如一系列文件名）。
+```
+option: parser.add_argument('-f', '--foo')
+position: parser.add_argument('bar')
+```
+
+进行解析时，option参数根据"-"来解析，剩下的就都是position参数。
 
 ### 2 action
+该选项指出针对命令行参数如何进行处理。
+1. 'store': 仅存储参数值，其为默认行为
+2. 'store_const'：存储“const”参数指定的值。当使用某些开关参数flag的时候比较有用。比如
+```
+>>> parser = argparse.ArgumentParser()
+>>> parser.add_argument('--foo', action='store_const', const=42)
+>>> parser.parse_args(['--foo'])
+Namespace(foo=42)
+```
+
+3. 'store_true', 'store_false':和'store_const'相同，指是更强调bool值。
+4. 'append':指出如果多次出现某个参数，则将其值追加到一个list中
+5. 'append_const':将多个const的值追加到列表中。如下面例子。
+```
+>>> parser = argparse.ArgumentParser()
+>>> parser.add_argument('--str', dest='types', action='append_const', const=str)
+>>> parser.add_argument('--int', dest='types', action='append_const', const=int)
+>>> parser.parse_args('--str --int'.split())
+Namespace(types=[<type 'str'>, <type 'int'>])
+```
+6. 'count':计数某个关键字参数出现次数。比如统计递增的详细信息层次。
+```
+>>> parser = argparse.ArgumentParser()
+>>> parser.add_argument('--verbose', '-v', action='count')
+>>> parser.parse_args(['-vvv'])
+Namespace(verbose=3)
+```
+
+7.
+
+
+
 ### 3 nargs
+
+
 ### 4 const
 ### 5 default
 ### 6 type
