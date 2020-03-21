@@ -58,84 +58,111 @@ class Widget {
 下面我们来介绍d-pointer设计模式。
 
 # 2 d-pointer
-上面问题的实质是，因为修改类定义，导致类大小变化，从而使上层依赖无法按照原来的方式访问下层的数据结构。因此，我们只需要在扩展下层类的时候，不改变类的大小，和数据成员的内存布局即可。
+上面问题的实质是，因为修改类定义，导致类大小变化，从而使上层依赖无法按照原来的地址，访问下层的数据结构。因此，我们只需要在扩展下层类的时候，不改变类的大小，和数据成员的内存布局即可。
 
-利用指针可以实现这一点：指针实际上是一个存储内存地址的整数。如下代码，我们将具体实现封装到WidgetPrivate中，并在Widget中添加指向WidgetPrivate对象的指针，此时，我们称这个指针为“D-pointer”。
+利用指针可以实现这一点：指针实际上是一个存储内存地址的整数。如下代码，我们将类的具体实现封装到WidgetPrivate中，并在Widget中添加指向WidgetPrivate对象的指针，此时，我们称这个指针为“D-pointer”。
 
 ```
 // WidgetPrivate.h
 class WidgetPrivate {
-
+  public:
+    Rect geometry() const;
   private:
-
+    Rect m_geometry;
 }
 ```
 
-
 ```
-/**
-由于d_ptr为一个指针，且用于不会在头文件中访问实体（referended）（会造成编译错误），因此WidgetPrivate不必包含在头文件中，只需前置声明即可。WidgetPrivate类定义于widget.cpp中，或者一个单独的文件，比如：widget_p.h中。
-*/
+// Widget.h
 class WidgetPrivate;
 class Widget {
-public:
+  public:
+    Widget();
+    ~Widget();
     Rect geometry() const;
-private:
-    WidgetPrivate *d_ptr;
-
-};
-
-```
-下面是widget_p.h的定义，为Widget类的私有头文件
-```
-struct WidgetPrivate {
-    Rect geometry;
-    String stylesheet;
-};
-
-// widget.cpp
-#include "widget_p.h"
-
-Widget::Widget() : d_ptr(new WidgetPrivate) {
-    // creation of private data
-}
-
-Rect Widget::geometry() const {
-    // the d_ptr is only accessed in the library code
-    return d_ptr->geometry;
+  private:
+    WidgetPrivate* m_dptr;
 }
 ```
-
-下面定义Widget类的子类Label：
+下面是Widget和WidgetPrivate的实现。
 ```
-class Label: public Widget {
-    String text();
-private:
-    // each class maintains its own d_pointer
-    LabelPrivate *d_ptr;
-};
+// WidgetPrivate.cpp
+#include "WidgetPrivate.h"
 
-// label.cpp
-// unlike WidgetPrivate, the customer decides LabelPrivate
-struct LabelPrivate {
-    String text;
-};
+WidgetPrivate::geometry() { return m_geometry; }
+```
+```
+// Widget.cpp
+#include "WidgetPrivate.h"
+#include "Widget.h"
 
-Label::Label() : d_ptr(new LabelPrivate) {
-
+Widget::Widget(): m_dptr(new WidgetPrivate) {}
+Widget::~Widget()
+{
+    delete m_dptr;
+    m_dpte = NULL;
 }
-String Label::text() {
-    return d_ptr->text;
+Rect Widget::geometry()
+{
+    if (m_dptr) {
+        return m_geometry;
+    }
+    return Rect();
 }
 ```
-上面设计使得CuteApp永远不会直接访问d_ptr(即d-pointer)，因为d-pointer仅有WidgetLib内部的类进行访问，而每次版本发布都会重新编译WidgetLib，因此Private类可以随意改动而不会影响到客户程序CuteApp。
+通过上面的代码，只要Widget的public接口不发生变化，就无需重新编译子类，从而提高了开发效率。下面，与上面相同的套路，我们继续定义子类Label。
 
-### 3.1 other benefits of d-pointer
-d-pointer不仅保证了binary的兼容性，还有以下好处：
-1， 隐藏实现细节——只需要头文件和二进制执行包，源文件无需提供。
-2， 头文件不包含实现细节，可作为API参考。
-3， 定义从头文件移到源文件，加速编译。
-实际上，主要原因还是在于binary compatible和Qt开始闭源代码。
+```
+// LabelPrivate.h
+class LabelPrivate {
+    public:
+        String m_text;
+}
+```
+```
+// Label.h
+#include "Widget"
+class LabelPrivate;
+class Label : public Widget {
+    public:
+        Label();
+        ~Label();
+        String text();
+    private:
+        LabelPrivate* m_dptr;
+}
+```
+下面是类Label对应的源文件。
+```
+// Label.cpp
+#include "LablePrivate.h"
+#include "Lable.h"
+
+Label::Label() : m_dptr(new LablePrivate) {}
+Label::~Label() 
+{
+    delete m_dptr;
+    m_dptr = NULL;
+}
+String Lable::text()
+{
+    if (m_dptr) {
+        return m_dptr->m_text;
+    }
+    return String();
+}
+```
+
+由于所有的d-pointer都被定义成private成员变量，因此我们永远不知道，也不必知道Private类到底做了什么，我们只需要只需要知道暴露出来的public接口。因此，d-pointer给我们带来如下好处：
+1. 我们只需要提供头文件和库文件，告诉用户可以调用哪些接口，而无需提供源文件。
+2. 修改底层实现代码，不会影响上层函数调用，解耦了上下层，提高编译速度，有更好的用户体验，每个库都是“即插即用”。
+3. 分离实现与接口，代码更容易维护。
+
+todo
+# 3 q-pointer
+现在让我们进一步思考。
+
+
 ## 4, the q-pointer
 上面例子只是给出了对外接口Label和Widget包裹对应私有类的设计模式，通过调用私有类（如LabelPrivate和WidgetPrivate）的方法（helper function），向客户程序提供处理服务。实际实现时，Private中的方法有时需要从对外接口类处获取客户程序的信息，因此需要调用外层服务接口类的public function，所以WidgetPrivate需要通过存储一个被称为q-pointer的指针，来对外部的接口类进行引用。向上面例子中添加q-pointer的代码如下:
 ```
