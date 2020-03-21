@@ -1,81 +1,77 @@
-# D-Pointer
+# 前言
+D-pointer设计模式，使得代码中，调用接口和具体实现分离，从而保证，只要类的公共接口签名不发生变化，即公共接口的传入参数不发生变化，我们就不必重新编译上层调用库。
 
-## 1， What is the d-pointer
-Qt源代码中可以看到Q_D和Q_Q宏，两个宏属于一种叫做d-pointer的设计模式，该设计模式隐藏了库的具体实现，保证即使库内部实现改变，也不会影响binary的兼容性。
+本篇文章将通过一个简单的例子，简要介绍Qt中的D-pointer，以及相关的宏Q_D和Q_Q.
 
-## 2，Binary compatibility — what is that?
 
-在设计类似Qt库的时候，最好能够让动态链接Qt的软件，即使在库升级或替换的情况下，依然能够正常运行，而无需重新编译。例如，软件CuteApp给予Qt4.5，但是在将Qt4.5升级到Qt4.6后，使用Qt4.5编译的CuteApp依然能够正常运行。
+# 1 兼容问题
 
-### 2.1 What breaks binary compatibility?
+现在，我们设计一个程序cuteApp，其依赖Qt4.5版本。 在后期维护中，我们希望将依赖的Qt库升级到4.7版本。假定cuteApp调用的Qt接口没有变化，所以我们只需要重新编译Qt库的代码。
 
-下面来看一个简单例子，说明在什么情况下，更换库后，需要编译。
+显然，上面的做法效率更高。我们无需重新编译cuteApp程序，只需让cuteApp动态链接Qt库，每次更换Qt版本，只编译Qt库，cuteApp也可以正确运行。我们称此时Qt和cuteApp是兼容的。
+
+如下代码，类Label是Widget的派生类。
 
 ```
+// Widget.h
 class Widget {
-    // ....
-private:
-    Rect m_geometry;
-};
-
-class Label : public Widget {
-public:
-    //...
-    String text() const {
-        return m_text;
-    }
-private:
-    String m_text;
-
-};
-```
-上面，我们定义了包含了成员变量geometry的基类Widget，将该类编译到WidgetLib 1.0。有人想到可以在Widget中添加支持stylesheet的功能，这样就生成了WidgetLib 1.1。下面为加入新功能后的代码：
-
-```
-class Widget {
-    // ....
-private:
-    Rect m_geometry;
-    String m_stylesheet; // new in WidgetLib 1.1
-};
-
-class Label : public Widget {
-public:
+  public:
     // ...
-    String text() const {
-        return m_text;
-    }
-private:
-    String m_text;
-};
+  private:
+    Rect m_geometry;
+}
 ```
-经过上面的修改后，我们的应用CuteApp无法运行。
+```
+// Label.h
+class Label : public Widget {
+  public:
+    String text() const { return m_text;}
+  private:
+    String m_text;
+}
+```
+现在，我们扩展这个程序——在Widget中添加新的成员变量m_styleSheet。
+```
+// Widget.h
+class Widget {
+  public:
+    // ...
+  private:
+    String m_styleSheet; // 新添加的变量
+    Rect m_geometry;
+}
+```
+如果只是重新编译Widget.h文件，而不重新编译Label.h文件，程序无法运行。
 
-### 2.2 Why did it crash?
+这是因为加入新的数据后，Widget的大小发生变化，m_geometry在Widget对象中的位置也发生了变化。如下图所示。
 
-原因在于，加入新的数据导致Widget和Label对象的大小发生改变，C++编译器在生成代码时，其使用"offsets"来访问对象（object）中的数据。下面大致展示了上面POD对象在内存中的样子：
+同时，Label::text()定义在类Label的声明中，即text()作为内联函数，因此，修改Widget后，访问text()函数也会使程序异常退出。
 
-        Label object layout in WidgetLib 1.0   |  Label object layout in WidgetLib 1.1
-                m_geometry <offset 0>          |     m_geometry <offset 0>
-                - - -                          |     m_stylesheet <offset 1>
-                m_text <offset 1>              |     - - -
-                - - -                          |     m_text <offset 2>
-                
-在WidgetLib 1.0中，Label对象中m_text成员变量逻辑上偏移量为1，与Label::text()对应的代码访问偏移量1。但是在WidgetLib 1.1中，m_text的偏移量变成了2，由于CuteApp程序没有重新编译，其仍然认为m_text的偏移量为1，实际上偏移量为1的位置为m_stylesheet。
+|变量名称（前）|变量位置（前）|变量名称（后）|变量位置（后）|
+|---|---|---|---|
+|m_geometry|0x0000|m_styleSheet|0x0000|
+|xxxx|xxxx|m_geometry|0x0010|
 
-产生这种问题的原因在于Label::text()定义于头文件，因此编译器将该函数内联起来。即便将Label::text()的定义移动到源文件，也无济于事，因为无论运行时，还是编译阶段，C++都依赖于对象的大小。编译时，编译器生成在栈中分配空间的代码，此时就已经为Label分配了空间。由于两个版本分配的空间不一致，因此Label的构造函数覆盖了已有数据，并产生corruption。
 
-### 2.3 Never change the size of an exported C++ class
+综上，如果我们打算改变Widget的成员变量，就必须将所有依赖Widget的类重新编译。那么是否可以既改变底层类Widget的实现，又不必编译上层的派生类呢？即，将实现与接口解耦。
 
-总之，在发布库的时候，不要改变C++类的大小，或者数据的排布（即数据声明的先后顺序），以及数据的可见性。C++编译器认为对象的大小以及对象内数据的排布顺序在客户程序编译后是不会发生变化的。
+下面我们来介绍d-pointer设计模式。
 
-那么如何在不改变对象大小的情况下添加新功能？
+# 2 d-pointer
+上面问题的实质是，因为修改类定义，导致类大小变化，从而使上层依赖无法按照原来的方式访问下层的数据结构。因此，我们只需要在扩展下层类的时候，不改变类的大小，和数据成员的内存布局即可。
 
-## 3，The d-pointer
+利用指针可以实现这一点：指针实际上是一个存储内存地址的整数。如下代码，我们将具体实现封装到WidgetPrivate中，并在Widget中添加指向WidgetPrivate对象的指针，此时，我们称这个指针为“D-pointer”。
 
-为了保证库中公有类的大小一致，可以只存储一个类对象的指针，该指针指向一个private/internal的数据结构，被指向的数据结构包含了所有的数据。被指向的数据结构尺寸无论变大变小，都不会对客户程序有任何影响，因为内部的指针仅由库代码访问，而暴露给客户程序的接口类的大小始终没有变化——其总是指针的大小。这个指针就被称作d-pointer。
+```
+// WidgetPrivate.h
+class WidgetPrivate {
 
-下面的代码揭示了该模式的核心（本篇中的所有代码都没有析构函数，应用中需自己添加）。
+  private:
+
+}
+```
+
+
 ```
 /**
 由于d_ptr为一个指针，且用于不会在头文件中访问实体（referended）（会造成编译错误），因此WidgetPrivate不必包含在头文件中，只需前置声明即可。WidgetPrivate类定义于widget.cpp中，或者一个单独的文件，比如：widget_p.h中。
@@ -337,24 +333,3 @@ public:
     }
 }
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
