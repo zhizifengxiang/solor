@@ -351,51 +351,53 @@ LabelPrivate::LabelPrivate(Widget* qptr) : WidgetPrivate(qptr) {}
 
 Label::Label() : Widget(new LabelPrivate(this)) {}
 ```
-再上面代码中，Label对象将自己的this指针传递给Widget，再经过Widget将指针传递给WidgetPrivate，即q-pointer由WidgetPrivate来维护——上层派生的public类指针传递到下层。同时，Widget在构造期间，保存LablePrivate对象指针到m_dptr中。此时，q-pointer和d-pointer都由最下层对应的基类来保存。而程序中只存在两个对象，分别是顶层派生的public class对象和private class对象。
+在上面代码中，Label对象将自己的this指针传递给Widget，再经过Widget将指针传递给WidgetPrivate，即q-pointer由WidgetPrivate来维护——上层派生的public类指针传递到下层。同时，Widget在构造期间，保存LablePrivate对象指针到m_dptr中。此时，q-pointer和d-pointer都由最下层对应的基类来保存。而程序中只存在两个对象，分别是顶层派生的public class对象和private class对象。
 
 现在，我们进一步考虑d-pointer在Qt中的应用。在Qt中，继承体系完全按照我们上面描述的方式设计实现。出了一些已知的，未来不会再改变的类，如QPoint, QRect等，一般来说，public class会继承类QObject，而对应private class会继承类QObjectPrivate.
 
 
-# 5 
-### 6.1 Q_D and Q_Q
-上面经过改进的方法有一个副作用是，我们将q-ptr和d-ptr分别作为Widget和WidgetPrivate类的指针，这就意味着下面的方法将会出问题：
+# 5 基类指针访问派生类接口问题
+在上面的设计中，我们将q-pointer和d-pointer都交由public class和private class继承体系中的最底层类来保管，而这两个指针的类型也是基类。
+但是，当我们需要用q-pointer，或者d-pointer来访问派生类的公共接口是，就必须进行类型转换。如下面的代码所示。
 ```
-void Label::setText(const String &text) {
-// won't work, since d_ptr is of type WidgetPrivate
-// even though it points to LabelPrivate object
-// 即由于指针d_ptr指向基类WidgetPrivate ，因此无法访问变量LabelPrivate中的成员变量text
-d_ptr->text = text; // 会产生错误
+void Label::setText(const String& text)
+{
+    m_dptr->m_text = text;
 }
 ```
-因此，当需要使用d-pointer来访问派生类时，我们需要static_cast来转换成适当的类型：
+在上面代码中，m_dptr的类型是WidgetPrivate，WidgetPrivate中没有数据成员m_text，而其派生类LabelPrivate中包含数据成员m_text。因此，我们需要对指针进行类型转换。如下代码所示。
 ```
-void Label::setText(const String &text) {
-    LabelPrivate *d = static_cast<LabelPrivate*>(d_ptr);
-    d->text = text;
+void Lable::setText(const String& text)
+{
+    LabelPrivate* dptr = reinterpreter_cast<LabelPrivate*>(m_dptr);
+    if (dptr) {
+        dptr->m_text = text;
+    }
 }
 ```
-使用static_cast 不够优雅，也比较麻烦，因此我们使用两个定义在src/corelib/global/qglobal.h中的宏，他们可以让操作更直接简便：
+上面的类型转换不仅不太优雅，而且每次类型转换十分麻烦。所以，Qt在文件src/corelib/global/qglobal.h中定义两个宏来对q-pointer和d-pointer进行类型转换。具体定义如下。
+
 ```
-// global.h
+/ global.h
 #define Q_D(Class) Class##Private * const d = d_func()
 #define Q_Q(Class) Class *const q = q_func()
-
+```
+下面代码展示如何使用两个宏函数。
+```
 // label.cpp
-// with Q_D, you can use the members of LabelPrivate from Label
-void Label::setText(const String &text) {
+void Label::setText(const String &text) 
+{
     Q_D(Label);
     d->text = text;
 }
 
-// with Q_Q, you can use the member of Label from LabelPrivate
-void LabelPrivate::someHelperFunction() {
+void LabelPrivate::someHelperFunction()
+{
     Q_Q(Label);
     q->selectAll();
 }
 ```
-### 6.2 Q_DECLARE_PRIVATE and Q_DECLARE_PUBLIC
-
-Q_DECLARE_PRIVATE宏声明于qglobal.h文件中：
+我们可以注意到，上面定义的宏Q_D和Q_Q分别定义了两个函数指向的指针。这两个函数d_func()和q_func()由定义在qglobal.h的宏Q_DECLARE_PRIVATE和Q_DECLARE_PUBLIC来实现。其中Q_DECLARE_PRIVATE宏定义了d_func()的实现，具体如下所示。
 ```
 #define Q_DECLARE_PRIVATE(Class) \
     inline Class##Private *d_func() { \
@@ -406,8 +408,9 @@ inline const Class##Private d_func() const { \
 } \
 friend class Class##Private;
 ```
+这样，我们就可以像下面代码一样，直接用宏来定义在public class中的private class指针了。
 
-上面的宏可以下面的方式使用：
+需要注意的是，上面不仅声明了d_func()函数，同时还声明了Class##Private为友元类。因为d_func()通常作为public class的私有成员函数，为了在使类型转换可以访问，所以声明对应的private class为友元类。
 
 ```
 // qlabel.h
@@ -416,14 +419,8 @@ private:
     Q_DECLARE_PRIVATE(QLabel);
 };
 ```
-该方法实际上为QLabel提供了一个函数d_func()，该函数允许访问其private internel class。由于宏被包含在private修饰符内，因此函数本身是私有的，但是可以被QLabel的友元类（friend class）来调用。该方法对于那些无法通过QLabel公有接口来访问的属性来说，特别有用。举一个不太恰当的例子，QLabel可能会跟踪用户单击了多少次链接，但是，并没有public API可以访问到这个信息。QStatictics就是这样一个需要此类信息的类，那么开发者就将QStatictics作为QLabel的友元类，这样QStatictics类型就可以这样做：
-> label->d_func()->linkClickCount
 
-d_func还有个好处是可以强制进行const-conrrectness：比如在类MyClass的一个const 成员函数中，你需要Q_D（const MyClass），这样你就只能在MyClassPrivate中调用const 成员函数了。对于没有const修饰符的d_ptr，你仍然可以调用非const函数。
-
-本篇完。
-
-## 附录
+# 附录
 友元函数：存在两个类A和B，其中B需要访问一些A的私有变量，则：
 ```
 class A {
@@ -435,7 +432,7 @@ class B {
 public:
     int returnA {
         A a;
-        return a.m_bAccess;
+        return a.m_bAccess; // 类B中可以直接访问A的私有成员
     }
 }
 ```
