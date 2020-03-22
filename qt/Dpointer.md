@@ -21,6 +21,7 @@ class Widget {
     Rect m_geometry;
 }
 ```
+
 ```
 // Label.h
 class Label : public Widget {
@@ -91,6 +92,8 @@ class Widget {
 
 WidgetPrivate::geometry() { return m_geometry; }
 ```
+
+
 ```
 // Widget.cpp
 #include "WidgetPrivate.h"
@@ -119,6 +122,8 @@ class LabelPrivate {
         String m_text;
 }
 ```
+
+
 ```
 // Label.h
 #include "Widget"
@@ -158,126 +163,200 @@ String Lable::text()
 2. 修改底层实现代码，不会影响上层函数调用，解耦了上下层，提高编译速度，有更好的用户体验，每个库都是“即插即用”。
 3. 分离实现与接口，代码更容易维护。
 
-todo
 # 3 q-pointer
-现在让我们进一步思考。
+上面设计中，调用是单方向的——只有Widget调用WidgetPrivate。如果WidgetPrivate也需要访问Widget中接口、成员变量怎么办？
 
+所以我们引入q-pointer。q-pointer是私有类WidgetPrivate，指向公共接口类Widget对象的指针。如下代码说明了使用q-pointer的设计。
 
-## 4, the q-pointer
-上面例子只是给出了对外接口Label和Widget包裹对应私有类的设计模式，通过调用私有类（如LabelPrivate和WidgetPrivate）的方法（helper function），向客户程序提供处理服务。实际实现时，Private中的方法有时需要从对外接口类处获取客户程序的信息，因此需要调用外层服务接口类的public function，所以WidgetPrivate需要通过存储一个被称为q-pointer的指针，来对外部的接口类进行引用。向上面例子中添加q-pointer的代码如下:
+现在，我们可以正式称，将公共接口暴露给用户的类为public class, 而给public class 提供具体实现的类为private class.
+
 ```
-// widget.h
+// WidgetPrivate.h
+class Widget;
+class WidgetPrivate {
+    public:
+        WidgetPrivate(Widget* q);
+    public:
+        Widget* m_qptr;
+
+        String m_styleSheet;
+        Rect m_geometry;
+}
+```
+
+```
+// Widget.h
 class WidgetPrivate;
 class Widget {
-    Rect geometry() const;
-private :
-    WidgetPrivate *d_ptr;
-
-};
-
-// widget_p.h
-struct WidgetPrivate {
-    // constructor initialaizing the q_ptr
-    WidgetPrivate(Widget *q) : q_ptr(q) {}
-    Widget *q_ptr; // q_ptr points to the API class
-    Rect geometry;
-    String stylesheet;
-};
-
-// widget.cpp
-// create private data, pass the "this" pointer to initialize the q_ptr
-Widget::Widget() : d_ptr(new WidgetPrivate(this)) {
-
-}
-
-Rect Widget::geometry() const {
-    // the d_ptr is only accessed in library code
-    return d_ptr->geometry;
+    public:
+        Widget();
+        Rect geometry() const;
+    private:
+        WidgetPrivate* m_dptr;
 }
 ```
-继承自Widget的类Label定义如下：
+
+下面为public/private class在源程序文件中的实现。
 ```
-// label.h
-clss Lable: public Widget {
-    String text() const;
-};
+// Widget.cpp
+#include "WidgetPrivate.h"
+#include "Widget.h"
 
-//label.cpp
-// unlike WidgetPrivate, the customer decides LabelPrivate
-struct LabelPrivate {
-    LablePrivate(Label *q) : q_ptr(q) {}
-    Label *q_ptr;
-    String text;
-};
+Widget::Widget() : m_dptr(new WidgetPrivate(this)) {}
 
-Lable::Label() : d_ptr(new LablePrivate(this)) {
-
-}
-
-String Label::text() {
-    return d_ptr->text;
+Rect Widget::geometry()
+{
+    if (m_dptr) {
+        return m_dptr->m_geometry;
+    }
+    return Rect();
 }
 ```
-## 5, inheriting d-pointers for optimization
+下面为WidgetPrivate的实现。需要注意，由于我们只是保存了一个指向Widget对象指针，所以没必要在WidgetPrivate.cpp中#include "Widget.h"。但是，如果需要调用Widget类的接口，则需要添加#include "Widget"。
+```
+// WidgetPrivate.cpp
+#include "WidgetPrivate.h"
 
-在上面代码中，创建Label类对象需要为LabelPrivate和WidgetPrivate类分配空间，若Qt采用此策略，情况会十分糟糕。比如QListWidget类，需要6层继承才能创建一个类对象，相应地，需要6次空间分配操作。通过向私有类采用层次式继承关系（inheritance hierarchy），以及向类传递d-pointer来实例化类，我们可以解决这个问题。
-
-需要注意，当继承d-pointer时，私有类（Private class）需要声明在一个单独文件中，如声明在widget_p.h中，而不能声明在源文件widget.cpp中。
+WidgetPrivate::WidgetPrivate(Widget* qptr) : m_qptr(qptr) {}
+```
+类似地，我们定义并实现了子类Label，并实现对应的private class。具体代码如下。
 
 ```
-// widget.h
+// LabelPrivate.h
+class Label;
+class LabelPrivate {
+    public:
+        LabelPrivate(Label* qptr);
+    public:
+        Label* m_qptr;
+        String text;
+};
+```
+
+
+```
+// Label.h
+class LabelPrivate;
+class Label {
+    public:
+        Label();
+        String text();
+    private:
+        LabelPrivate *m_dptr;
+}
+```
+下面是Label的public/private class实现。同样地，由于LabelPrivate并没有调用Label中声明的接口，因此，我们不需要再LabelPrivate.cpp中#include “Label.h”
+
+```
+// LablePrivate.cpp
+#include "LabelPrvate.h"
+
+LabelPrivate::LabelPrivate(Label* qptr) : m_qptr(qptr) {}
+```
+
+
+```
+// Label.cpp
+#include "LabelPrivate.h"
+#include "Label.h"
+
+Label::Label() : m_dptr(new LabelPrivate(this)) {}
+
+String Label::text()
+{
+    if (m_dptr) {
+        return m_dptr->text;
+    }
+    return String();
+}
+```
+
+# 4 多层类对象衍生问题及优化
+上面我们加了q-pointer和d-pointer，使public class和private class互指，并使用private class隐藏了public class的实现细节。但是，有一个问题是，我们每创建一个public class对象，就会产生对应的private class对象。如果继承层次比较多，那么创建顶层派生类对象，将导致无数个private class 对象被创建。
+
+具体点说，如果创建Label对象，因为Label继承自Widget，Label和Widget共享一个对象。但是，我们需要创建WidgetPrivate对象、LabelPrivate对象。这样，创建一个public class对象，就需要创建三个对象。进一步说，如果继承层次为n，如果创建一个顶层派生类对象，不仅要创建派生类对象本身，还要创建n个private class对象。这种创建/销毁对象的开销会严重效率。
+
+所以，我们进一步考虑，是不是可以让private class，像public class一样，也有一套继承体系？下面，我们就实现这种想法。我们将private class和public class分化为两个继承体系，在继承体系中，每个类对应着自己的public class和private class。
+
+```
+// WidgetPrivate.h
+class Widget;
+class WidgetPrivate {
+    public:
+        WidgetPrivate(Widget *qptr);
+    private:
+        Widget* m_qptr;
+}
+```
+
+```
+// Widget.h
+class WidgetPrivate;
 class Widget {
-public:
-    Widget();
-protected:
-    // only subclass can access below code
-    // alow subclass to initialize with their own concrete Private
-    Widget(WidgetPrivate &d);
-    WidgetPrivate *d_ptr;
-};
-
-// widget_p.h
-struct WidgetPrivate {
-    WidgetPrivate(Widget *p) : q_ptr(q) {} // constructor initializing the q_ptr
-    Widget *q_ptr; // q_ptr pointing to the API class
-    Rect geometry;
-    String stylesheet;
-};
-
-// widget.cpp
-Widget::Widget() : d_ptr(new WidgetPrivate(this)) {
-
+    public:
+        Widget();
+    private：
+        WidgetPrivate* m_dptr;
 }
-
-Widget::Widget(WidgetPrivate &d) : d_ptr(&d) {
-
-}
-
-// label.h
-class Label : public Widget {
-public:
-    Label();
-protected:
-    Label(LabelPrivate &d); // allow Lable subclasses to pass on their Private
-    // notice how Label doesen't have a d_ptr ! It just uses Widget's d_ptr
-};
-
-// label.cpp
-class LabelPrivate : public WidgetPrivate {
-public:
-    String text;
-};
-Label::Label() : Widget(* new LabelPrivate) { // initialize the d_pointer with our-own-Private
-}
-
-Label::Label(LabelPrivate &d) : Widget(d) {
-}
+```
 
 ```
-在上面代码中，当创建出Label类对象后，其会自动创建LabelPrivate对象（继承自WidgetPrivate）。Label会将d-pointer对象实体传递给Widget类的protected构造函数。所以，创建Label对象只会进行一次内存分配，而Label也提供了protected构造函数，该函数可被子类用来提供他们自己的Private class。
-## 6， d-pointer in Qt
-在Qt 中，全部public class都是用d-pointer方法，唯一不适用该方法的情况是，已经预先知道该类，永远不会在未来版本中添加新的成员变量。比如，QPoint，QRect类，这两个类不会再添加新的成员变量，因此，他们的成员变量直接放入public class中，而不使用d-pointer。注意，根据上面的方法，所有的Private class都继承自QObjectPrivate。
+// WidgetPrivate.cpp
+#include "WidgetPrivate.h"
+WidgetPrivate::WidgetPrivate(Widget *qptr) : m_qptr(qptr) {}
+```
 
+
+```
+// Widget.cpp
+#include "WidgetPrivate.h"
+#include "Widget.h"
+Widget::Widget() : m_dptr(new WidgetPrivate(this)) {}
+```
+
+```
+// LabelPrivate.h
+#include "WidgetPrivate.h"
+class LabelPrivate : public WidgetPrivate {
+    public:
+        LabelPrivate(Widget* qptr);
+    public:
+        // 因为基类WidgetPrivate包含了q-pointer，所以LabelPrivate无需再保存q-pointer信息
+        String text;
+}
+```
+
+```
+// Label.h
+#include "Widget.h"
+class Label : public Widget {
+    public:
+        Label();
+        // 因为Widget中包含了d-pointer，所以Label中无需再保存d-pointer信息
+}
+```
+
+
+```
+// LabelPrivate.cpp
+#include "LabelPrivate.h"
+
+LabelPrivate::LabelPrivate(Widget* qptr) : WidgetPrivate(qptr) {}
+```
+
+```
+// Label.cpp
+#include "Label.h"
+#include "LabelPrivate.h"
+
+Label::Label() : Widget(new LabelPrivate(this)) {}
+```
+再上面代码中，Label对象将自己的this指针传递给Widget，再经过Widget将指针传递给WidgetPrivate，即q-pointer由WidgetPrivate来维护——上层派生的public类指针传递到下层。同时，Widget在构造期间，保存LablePrivate对象指针到m_dptr中。此时，q-pointer和d-pointer都由最下层对应的基类来保存。而程序中只存在两个对象，分别是顶层派生的public class对象和private class对象。
+
+现在，我们进一步考虑d-pointer在Qt中的应用。在Qt中，继承体系完全按照我们上面描述的方式设计实现。出了一些已知的，未来不会再改变的类，如QPoint, QRect等，一般来说，public class会继承类QObject，而对应private class会继承类QObjectPrivate.
+
+
+# 5 
 ### 6.1 Q_D and Q_Q
 上面经过改进的方法有一个副作用是，我们将q-ptr和d-ptr分别作为Widget和WidgetPrivate类的指针，这就意味着下面的方法将会出问题：
 ```
