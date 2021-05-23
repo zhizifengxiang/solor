@@ -1,1 +1,0 @@
-该模块用来与interpreter进行沟通，获得系统中的变量或者interpreter的功能。
